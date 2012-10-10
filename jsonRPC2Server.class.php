@@ -15,8 +15,10 @@
  *      has_HandledRequestERROR(& $string, & $code)
  *      has_ResponseReady(& $response)
  *
- * There are also some others which you can override including...
+ * There are also some other data processing/handling methods which you can override, including...
  *      handle_json_decoding_error()
+ *
+ * And these, but you must NEVER throw exceptions in ANY of the following overridden methods...
  *      generateOK($result, $id)
  *      outputOK($result, $id)
  *      generateError($reason, $code = -32600, $id = NULL)
