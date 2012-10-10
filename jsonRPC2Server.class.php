@@ -1,5 +1,10 @@
 <?php
 /**
+  * @package    JSON-RPC 2 Server
+  * @version    1.1
+  */
+
+/**
  * This class acts as a PHP JSON-RPC 2.0 Server, able to handle 2.0 by-name and ordered array of parameters.  
  * In order to accomplish by-name parameters this class requires php 5.3 or greater be used.  This class does
  * not detect your version of PHP and simply assumes you read this.
@@ -115,7 +120,7 @@ class jsonRPC2Server {
 
             // Observer: has_GotClassAndMethodName(& $classname, & $method)
             static::has_GotClassAndMethodName($classname, static::$request['method']);
-        
+
             // If we don't have this class after our observer (hopefully) included the files, then bail!
             // NOTE: class_exists kicks off the autoloader, so if the autoloader is setup properly, no 
             // includes are necessary from has_GotClassAndMethodName()
@@ -151,9 +156,9 @@ class jsonRPC2Server {
             } else {
                 // Check if our __call or __callStatics are defined....
                 $reflection_methods = self::reflection_to_clean_array($reflection_class->getMethods());
-                if (array_search('__call', $reflection_methods)) {
+                if (array_search('__call', $reflection_methods) !== FALSE) {
                     // Do nothing here
-                } else if (!array_search('__callStatic', $reflection_methods)) {
+                } else if (array_search('__callStatic', $reflection_methods) !== FALSE) {
                     // Call this statically
                     $call_statically    = TRUE;
                 } else {
