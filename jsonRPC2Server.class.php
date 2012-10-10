@@ -1,6 +1,8 @@
 <?php
 /**
- * This class acts as a PHP JSON-RPC 2.0 Server, able to handle 2.0 by-name and ordered array of parameters
+ * This class acts as a PHP JSON-RPC 2.0 Server, able to handle 2.0 by-name and ordered array of parameters.  
+ * In order to accomplish by-name parameters this class requires php 5.3 or greater be used.  This class does
+ * not detect your version of PHP and simply assumes you read this.
  *
  * Though not necessary, typically this class is extended for your codebase with observer methods
  * that kick off as the JSON-RPC request is being handled, allowing you to modify/change/update/validate data
@@ -44,8 +46,16 @@ class jsonRPC2Server {
      *                                  contain both the classname and the method with dot notation.  For example, if we wanted to call MyClass->MyMethod()
      *                                  then either pass in $classname = "MyClass" and in the JSON set $method to "MyMethod" OR leave classname empty
      *                                  and in your JSON set $method to "MyClass.MyMethod"
+     *
+     * @param   string      $serialized_jsonrpc  (optional)     If the JSON-RPC isn't from stdin (POST) but from another mechanism (GET, or for testing) specify
+     *                                                          the serialized json here.  If this string is left empty, the handler will check STDIN instead (default).
+     *                                                          This mechanism can help facilitate allowing raw uploaded/out-of-band data, for example your GET contains
+     *                                                          some json-rpc, but the POST contains file(s) uploaded so you don't have to base64-encode your images, causing 
+     *                                                          some significant overhead on the size of your uploads and processing overhead unserializing massive data sets.
+     *
+     * @param   boolean     $exit_after     (optional, default TRUE) Exit/abort script after handling the request
      */
-    public static function handle($classname = '') {
+    public static function handle($classname = '', $serialized_jsonrpc = '', $exit_after = TRUE) {
         
         // Our monolithic try/catch block, so (some of) our observers can throw exceptions
         try {
@@ -58,15 +68,18 @@ class jsonRPC2Server {
                 throw new Exception('Invalid content-type ('.$_SERVER['CONTENT_TYPE'].') expecting "application/json" or "application/javascript" content-type');
             }
         
-            // reads the input JSON data from the PHP input raw data stream
-            $rawdata = file_get_contents('php://input');
+            // reads the input JSON data from the PHP input raw data stream if no string is specified
+            if (strlen($serialized_jsonrpc) > 0)
+                $rawdata = $serialized_jsonrpc;
+            else
+                $rawdata = file_get_contents('php://input');
         
             // Observer: has_GotRawData(& $rawdata)
             static::has_GotRawData($rawdata);
 
             // Extract our JSON data
             static::$request = json_decode($rawdata,true);
-            
+
             // Clean up (save memory)
             unset($rawdata);
             
@@ -75,9 +88,12 @@ class jsonRPC2Server {
             
             // Check for an invalid request
             if (static::$request === NULL) {
-                throw new Exception('Invalid request - try some json-rpc next time');
-            } else if (!isset(static::$request['method']) || !isset(static::$request['params']) || !isset(static::$request['id'])) {
-                throw new Exception('Your JSON is missing one of the three required parameters: (method,params,id)');
+                throw new Exception('Invalid request - try some json-rpc next time, received '.$rawdata);
+            } else if (!isset(static::$request['method']) || !isset(static::$request['id'])) {
+                throw new Exception('Your JSON is missing one of the two required parameters: (method,id)');
+            } else if (!isset(static::$request['params'])) {
+                // If not valid params passed in, assume there was none, an empty array, don't error out, some clients are sloppy and do this
+                static::$request['params'] = array();
             }
 
             // Observer: has_GotData()
@@ -107,30 +123,47 @@ class jsonRPC2Server {
                 throw new Exception('The class ('.$classname.') was not defined or is invalid');
             }
         
-            // Ensure our method exists on our class
-            if (!method_exists($classname, static::$request['method'])) {
-                throw new Exception('The method '.static::$request['method'].'() is not defined on the class '.$classname);
-            }
-
             // Ensure that we can call this method (aka, public) and implement our JSON-RPC 2.0 by-name parameters
             $reflection_class   = new ReflectionClass( $classname );
-            $reflection_method  = $reflection_class->getMethod( static::$request['method'] );
-            $result = $reflection_method->isPublic();
-            if (!$result) {
-                throw new Exception('The method ('.static::$request['method'].') is not public');
-            }
+            $call_statically    = FALSE;
 
-            // If input parameters are by name, reorder them
-            if (self::detectIfInputParametersAreByName(static::$request['params']) ) {
-                // If they are by name then rearrange parameters by name
-                static::$request['params'] = self::rearrangeParametersByName(
-                    static::$request['params'],
-                    self::reflection_to_clean_array($reflection_method->getParameters())
-                );
+            // Ensure our method exists on our class before trying to reorder params, we can't re-order params if no function is declared (function may be a __call or __callStatic)
+            if (method_exists($classname, static::$request['method'])) {
+                // Get our method
+                $reflection_method  = $reflection_class->getMethod( static::$request['method'] );
+                // Set our class to call this statically if necessary
+                if ($reflection_method->isStatic())
+                    $call_statically    = TRUE;
+                // Ensure we can call this class
+                $result = $reflection_method->isPublic();
+                if (!$result) {
+                    throw new Exception('The method ('.static::$request['method'].') is not public');
+                }
+
+                // If input parameters are by name, reorder them
+                if (self::detectIfInputParametersAreByName(static::$request['params']) ) {
+                    // If they are by name then rearrange parameters by name
+                    static::$request['params'] = self::rearrangeParametersByName(
+                        static::$request['params'],
+                        self::reflection_to_clean_array($reflection_method->getParameters())
+                    );
+                }
+            } else {
+                // Check if our __call or __callStatics are defined....
+                $reflection_methods = self::reflection_to_clean_array($reflection_class->getMethods());
+                if (array_search('__call', $reflection_methods)) {
+                    // Do nothing here
+                } else if (!array_search('__callStatic', $reflection_methods)) {
+                    // Call this statically
+                    $call_statically    = TRUE;
+                } else {
+                    // If this method wasn't found on the class, and there is no __call or __callStatic then this method call will fail, bail!
+                    throw new Exception('Method '.static::$request['method'].' does not exist');
+                }
             }
             
             // Try to call our method statically if this method is static.  
-            if ($reflection_method->isStatic()) {
+            if ($call_statically) {
                 // Try our static method call
                 $result = 
                     forward_static_call_array( 
@@ -152,8 +185,9 @@ class jsonRPC2Server {
             // Observer has_HandledRequestOK($result)
             static::has_HandledRequestOK($result);
         
-            // Return our result and exit
-            self::outputOK($result, static::$request['id']);
+            // Return our result and exit or return
+            self::outputOK($result, static::$request['id'], $exit_after);
+            return;
         
         // If either of the above paths errors out, catch the exception and handle it here
         } catch (Exception $e) {
@@ -164,14 +198,20 @@ class jsonRPC2Server {
             // Observer has_HandledRequestERROR($message, $code)
             static::has_HandledRequestERROR($message, $code);
 
-            // Pass back our error message and code through JSON-RPC
-            self::outputError($message, $code);
+            // Pass back our error message and code through JSON-RPC and exit or return
+            self::outputError($message, $code, NULL, $exit_after);
+            return;
         }
         
         // We shouldn't get here, ever unless the above logic was modified
         self::outputError('Internal error while trying to handle JSON-RPC');
+        return;
     }
     
+    public static function handle_stream($maximum_threads = 3) {
+        throw new Exception('This is not implemented yet, try again later');
+    }
+
     /**
      * Our primary endpoint to output json to the user.  All output goes through this method
      *
@@ -216,8 +256,9 @@ class jsonRPC2Server {
      * @param   string   $raw_json_string   The raw json string that we want to output to the other endpoint
      */
     public static function outputRAWJSON($raw_json_string) {
-        // Send our JSON-RPC output and header type
-        header('Content-type: application/json');
+        // Send our JSON-RPC output and header type, only if not on cli
+        if (php_sapi_name() != 'cli')
+            header('Content-type: application/json');
         // And output our data
         echo $raw_json_string;
     }
@@ -229,8 +270,8 @@ class jsonRPC2Server {
      * @param   integer  $code      The error code of why this is failing (some clients can do different things based on different codes)
      * @param   integer  $id        When a request is made it has a unique ID which we must return in our response
      */
-    public static function outputError($reason, $code = -32600, $id = NULL) {
-        static::outputJSON( static::generateError($reason, $code, $id) );
+    public static function outputError($reason, $code = -32600, $id = NULL, $exit_after = TRUE) {
+        static::outputJSON( static::generateError($reason, $code, $id), $exit_after );
     }
 
     /**
@@ -262,8 +303,8 @@ class jsonRPC2Server {
      * @param   mixed   $result    The output of the RPC call
      * @param   integer $id        When a request is made it has a unique ID which we must return in our response
      */
-    public static function outputOK($result, $id) {
-        static::outputJSON( static::generateOK( $result, $id ) );
+    public static function outputOK($result, $id, $exit_after = TRUE) {
+        static::outputJSON( static::generateOK( $result, $id ), $exit_after );
     }
     
     
