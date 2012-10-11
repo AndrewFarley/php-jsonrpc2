@@ -41,10 +41,10 @@ class jsonRPC2Server {
     public static $request = NULL;
     
     /**
-     * This function handles a JSON-RPC request from stdin.  Note: This is not meant for handling a JSON-RPC two-way streams of 
-     * data, for that, you should see the "stream()" method (not implemented yet) that implements threads and supports
-     * a TCP connection streaming data back and forth to a client.  stream() is intended to be used NOT from a HTTP endpoint
-     * but from a xinetd or custom PHP socket-based endpoint.
+     * This function handles a JSON-RPC request from stdin or handles the JSON-RPC request as a parameter (second param).  
+     * Note: This function alone is not meant for handling a JSON-RPC two-way streams of data, for that, you should see the "stream()" method
+     * (not implemented yet) below.  By default this also exits the script after handling the request, which can be disabled
+     * with the third parameter, mostly for testing purposes.
      *
      * @param   string      $classname  (optional) The name of the class we're calling this method on.  If this value is set then our $method parameter
      *                                  in JSON-RPC should be just the method name.  If this value is NOT set, then our $method parameter should
@@ -106,12 +106,14 @@ class jsonRPC2Server {
         
             // Get our class name from our method parameter if we haven't set it already
             if (strlen($classname) <= 0) {
+                // See if this is a dot-notated class.method
                 $pos = strpos(static::$request['method'],'.');
+                // If so, set our class and method name
                 if ($pos !== FALSE) {
                     $classname = substr(static::$request['method'], 0, $pos);
                     static::$request['method'] = substr(static::$request['method'],$pos+1);
                 } else {
-                    throw new Exception('No class specified in your method parameter (eg: Classname.methodname)');
+                    throw new Exception('No class specified in your method parameter (eg: Classname.methodname) or no class name passed into the handler (so your JSON can just contain the method called)');
                 }
             }
             
@@ -122,15 +124,15 @@ class jsonRPC2Server {
             static::has_GotClassAndMethodName($classname, static::$request['method']);
 
             // If we don't have this class after our observer (hopefully) included the files, then bail!
-            // NOTE: class_exists kicks off the autoloader, so if the autoloader is setup properly, no 
-            // includes are necessary from has_GotClassAndMethodName()
+            // NOTE: class_exists below kicks off the autoloader, so if the autoloader is setup properly, no 
+            // includes are necessary from the has_GotClassAndMethodName() observer
             if (!class_exists($classname)) {
                 throw new Exception('The class ('.$classname.') was not defined or is invalid');
             }
         
             // Ensure that we can call this method (aka, public) and implement our JSON-RPC 2.0 by-name parameters
             $reflection_class   = new ReflectionClass( $classname );
-            $call_statically    = FALSE;
+            $call_statically    = FALSE;        // Used to detect whether to call this method statically, or not
 
             // Ensure our method exists on our class before trying to reorder params, we can't re-order params if no function is declared (function may be a __call or __callStatic)
             if (method_exists($classname, static::$request['method'])) {
@@ -154,7 +156,7 @@ class jsonRPC2Server {
                     );
                 }
             } else {
-                // Check if our __call or __callStatics are defined....
+                // Check if our __call or __callStatic is defined...
                 $reflection_methods = self::reflection_to_clean_array($reflection_class->getMethods());
                 if (array_search('__call', $reflection_methods) !== FALSE) {
                     // Do nothing here
@@ -226,6 +228,7 @@ class jsonRPC2Server {
     public static function outputJSON($data, $andBail = TRUE) {
         // If we forgot to set which version of json-rpc we're using in our data stream, which we definitely do everywhere (below), but just incase
         if (is_array($data) && !isset($data['jsonrpc'])) {
+            // Some clients are finicky and want jsonrpc as the first element in the response array, but if you want less computing overhead, comment out the two array_reverse's
             $arr = array_reverse($data, true); 
             $arr['jsonrpc'] = '2.0'; 
             $data = array_reverse($arr, true);
@@ -261,7 +264,10 @@ class jsonRPC2Server {
      * @param   string   $raw_json_string   The raw json string that we want to output to the other endpoint
      */
     public static function outputRAWJSON($raw_json_string) {
-        // Send our JSON-RPC output and header type, only if not on cli
+        /**
+         * Send our JSON-RPC output and header type, only if not on cli
+         * TODO: This logic may need to be improved/changed to support streaming
+         */
         if (php_sapi_name() != 'cli')
             header('Content-type: application/json');
         // And output our data
