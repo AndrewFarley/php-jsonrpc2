@@ -111,6 +111,7 @@ echo "
 
 ";
 
+$jsonrpcrequest['method'] = 'SampleAPIClass.outputThreeParameters';
 $jsonrpcrequest['params'] = array('value1','value3','value2');
 
 echo "Sample 6 Input: \n" . print_r($jsonrpcrequest, true) . "\nSample 6 Output (raw): \n";
