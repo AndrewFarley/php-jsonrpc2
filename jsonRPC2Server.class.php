@@ -68,16 +68,26 @@ class jsonRPC2Server {
             static::has_Started();
         
             // Checks if a JSON-RPC request has been received and exits if it's not valid
+            // Oct 16, 2012 - Disabled this check, it doesn't make sense by default, and it seems many clients don't set valid mime types, enable it if you want
+            /*
             $valid_types = array('application/json','application/javascript','application/json-rpc');
             if ( $_SERVER['REQUEST_METHOD'] != 'POST' || empty($_SERVER['CONTENT_TYPE']) || !in_array($_SERVER['CONTENT_TYPE'],$valid_types ) ) {
                 throw new Exception('Invalid content-type ('.$_SERVER['CONTENT_TYPE'].') expecting "application/json" or "application/javascript" content-type');
             }
+            */
         
-            // reads the input JSON data from the PHP input raw data stream if no string is specified
+            // Reads the JSON request from the parameter if it's specified
             if (strlen($serialized_jsonrpc) > 0)
                 $rawdata = $serialized_jsonrpc;
-            else
+            // Or it reads it from a PHP GET superglobal, if specified
+            else if (!empty($_GET['json_rpc']))
+                $rawdata = urldecode($_GET['json_rpc']);
+            // OR if it was POSTed reads it from the post raw (via php://input), if specified
+            else if ($_SERVER['REQUEST_METHOD'] == 'POST')
                 $rawdata = file_get_contents('php://input');
+            // Or else we failed
+            else
+                throw new Exception('No JSON received through any of the supported mechanisms (POST/GET/Method Parameter)');
         
             // Observer: has_GotRawData(& $rawdata)
             static::has_GotRawData($rawdata);
