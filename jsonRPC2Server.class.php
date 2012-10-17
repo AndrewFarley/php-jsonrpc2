@@ -41,10 +41,10 @@ class jsonRPC2Server {
     public static $request = NULL;
     
     /**
-     * This function handles a JSON-RPC request from stdin or handles the JSON-RPC request as a parameter (second param).  
-     * Note: This function alone is not meant for handling a JSON-RPC two-way streams of data, for that, you should see the "stream()" method
-     * (not implemented yet) below.  By default this also exits the script after handling the request, which can be disabled
-     * with the third parameter, mostly for testing purposes.
+     * This function handles a JSON-RPC request from STDIN, a POST, a GET param, or a parameter into this method.
+     * Note: This function alone is not meant for handling a JSON-RPC two-way streams of data, for that, you should 
+     * see the "handle_stream()" method (not implemented yet) below.  By default this also exits the script after 
+     * handling the request, which can be disabled with the third parameter, mostly for testing purposes.
      *
      * @param   string      $classname  (optional) The name of the class we're calling this method on.  If this value is set then our $method parameter
      *                                  in JSON-RPC should be just the method name.  If this value is NOT set, then our $method parameter should
@@ -68,7 +68,8 @@ class jsonRPC2Server {
             static::has_Started();
         
             // Checks if a JSON-RPC request has been received and exits if it's not valid
-            // Oct 16, 2012 - Disabled this check, it doesn't make sense by default, and it seems many clients don't set valid mime types, enable it if you want
+            // Oct 16, 2012 - Disabled this check, it doesn't make sense by default, and it seems many clients don't set
+            // valid mime types, feel free to re-enable this if you want
             /*
             $valid_types = array('application/json','application/javascript','application/json-rpc');
             if ( $_SERVER['REQUEST_METHOD'] != 'POST' || empty($_SERVER['CONTENT_TYPE']) || !in_array($_SERVER['CONTENT_TYPE'],$valid_types ) ) {
@@ -82,12 +83,12 @@ class jsonRPC2Server {
             // Or it reads it from a PHP GET superglobal, if specified
             else if (!empty($_GET['json_rpc']))
                 $rawdata = urldecode($_GET['json_rpc']);
-            // OR if it was POSTed reads it from the post raw (via php://input), if specified
-            else if ($_SERVER['REQUEST_METHOD'] == 'POST')
+            // OR if it was POSTed or given via stdin, reads it (via php://input), if specified
+            else
                 $rawdata = file_get_contents('php://input');
             // Or else we failed
-            else
-                throw new Exception('No JSON received through any of the supported mechanisms (POST/GET/Method Parameter)');
+            if (strlen($rawdata) <= 0)
+                throw new Exception('No JSON received through any of the supported mechanisms (POST/STDIN/GET/Parameter)');
         
             // Observer: has_GotRawData(& $rawdata)
             static::has_GotRawData($rawdata);
@@ -382,15 +383,25 @@ class jsonRPC2Server {
         }
         // Then re-order our array
         $final_array = array();
+        $maxkey = 0;
         foreach ($parameter_array as $key=>$val) {
             $newkey = array_search($key,$ordering_array);
             if ($newkey === FALSE) {
                 throw new Exception('The JSON-RPC 2.0 By-Name parameter ('.$key.') appears to not be a valid key name for this method, please check your code (key names are case sensitive)');
             }
+            if ($newkey > $maxkey) $maxkey = $newkey;
             $final_array[$newkey] = $val;
         }
+        // Set missing values
+        for ($i = 0; $i < $maxkey; $i++) {
+            if (!isset($final_array[$i]))
+                $final_array[$i] = NULL;
+        }
+
         // Sort keys by array
         ksort($final_array, SORT_NUMERIC);
+
+        // Return final array
         return $final_array;
     }
     
