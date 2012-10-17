@@ -1,3 +1,8 @@
+v1.2
+======
+- Made JSON-RPC server able to handle requests automatically from GET, allowing for further and flexibility and out-of-band requests.
+- Fixed a jsonrpc 2.0 by-name parameterization bug when not specifying the names of all parameters
+
 v1.1
 ======
 

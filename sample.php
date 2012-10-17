@@ -1,7 +1,7 @@
 <?php
 /**
   * @package    JSON-RPC 2 Server
-  * @version    1.1
+  * @version    1.2
   */
 
 require_once('SampleJSONRPCServer.class.php');
