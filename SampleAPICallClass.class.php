@@ -1,7 +1,8 @@
 <?php
 /**
-  * @package    JSON-RPC 2 Server
-  * @version    1.2
+  * @package    php-jsonrpc2
+  * @see        https://github.com/AndrewFarley/php-jsonrpc2
+  * @version    1.3
   */
 
 class SampleAPICallClass {

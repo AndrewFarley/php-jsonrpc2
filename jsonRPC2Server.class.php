@@ -1,6 +1,7 @@
 <?php
 /**
-  * @package    JSON-RPC 2 Server
+  * @package    php-jsonrpc2
+  * @see        https://github.com/AndrewFarley/php-jsonrpc2
   * @version    1.3
   */
 
