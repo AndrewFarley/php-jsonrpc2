@@ -30,11 +30,6 @@ class SampleJSONRPCServer extends jsonRPC2Server {
      * but can also be used to override some security checks on the content of the remote request (such as the content type and request method)
      */
     public static function has_Started() {
-        // This bypasses the jsonrpc server's content-type checks by force-setting the input to json so our class doesn't error out
-        $_SERVER['CONTENT_TYPE'] = 'application/json';
-        // And temporarily force-setting our request method to a POST even if it wasn't
-        $_SERVER['REQUEST_METHOD'] = 'POST';
-        
         // Debugging
         if (self::$debug) error_log(__FUNCTION__.' called' );
         
@@ -158,7 +153,7 @@ class SampleJSONRPCServer extends jsonRPC2Server {
         $args = func_get_args();
         if (self::$debug) error_log(__FUNCTION__.' called with arguments '.print_r($args,TRUE) );
         // For debugging
-        error_log((isset(static::$request['class']) ? static::$request['class'] : '') . (isset(static::$request['method'])?'.' . static::$request['method'] : '') . 'Caught exception (' . $code . ') ' . $string);
+        error_log((isset(static::$request['class']) ? static::$request['class'] : '') . (isset(static::$request['method'])?'.' . static::$request['method'] : '') . ' Caught exception (' . $code . ') ' . $string);
     }
     
     
@@ -180,8 +175,9 @@ class SampleJSONRPCServer extends jsonRPC2Server {
     
     
     /**
-     * This overrides the jsonrpc server encode json method so that we properly encode beans based 
-     * on whether they want short beans and based on their access level
+     * This overrides the jsonrpc server encode json method so that we can properly encode objects
+     * based on things like security, access levels, etc.  For example, an owner of an object will
+     * have more access to view data and subdata than a public user.
      */
     public static function encodeJSON($data) {
         // At the very least, you must return a json-serialized version of this data

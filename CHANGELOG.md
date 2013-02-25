@@ -1,3 +1,10 @@
+v1.3
+======
+- Moved error codes into static consts
+- Removed obsolete type check
+- Added error code constants into all applicable exceptions
+- Fixed some comments throughout the project
+
 v1.2
 ======
 - Made JSON-RPC server able to handle requests automatically from GET, allowing for further and flexibility and out-of-band requests.

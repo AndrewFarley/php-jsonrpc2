@@ -103,7 +103,7 @@ echo print_r(json_decode($output, true), TRUE);
 
 echo "
 /**
- * Sample 6
+ * Sample 4
  *
  * Then, setting our parameters to json-rpc 1.0 positional params array, you should see that this output will now
  * have value1, value3, then value2, since it's based on their position (positional, 1.0) not their key (by-name, 2.0)
@@ -114,20 +114,20 @@ echo "
 $jsonrpcrequest['method'] = 'SampleAPIClass.outputThreeParameters';
 $jsonrpcrequest['params'] = array('value1','value3','value2');
 
-echo "Sample 6 Input: \n" . print_r($jsonrpcrequest, true) . "\nSample 6 Output (raw): \n";
+echo "Sample 5 Input: \n" . print_r($jsonrpcrequest, true) . "\nSample 5 Output (raw): \n";
 ob_start();
 SampleJSONRPCServer::handle('', json_encode($jsonrpcrequest), FALSE );
 $output = ob_get_contents();
 ob_flush();
 ob_end_clean();
-echo "\n\nSample 6 Output (decoded): \n";
+echo "\n\nSample 5 Output (decoded): \n";
 echo print_r(json_decode($output, true), TRUE);
 unset($jsonrpcrequest['params']['param4_is_invalid']);
 
 
 echo "
 /**
- * Sample 7
+ * Sample 6
  *
  * Then, setting our parameters to invalid values (by-name parameters), setting a non-existant param param4_is_invalid
  */
@@ -143,19 +143,19 @@ $jsonrpcrequest['params'] = array(
 $jsonrpcrequest['params']['param4_is_invalid'] = 'value4';
 
 
-echo "Sample 7 Input: \n" . print_r($jsonrpcrequest, true) . "\nSample 7 Output (raw): \n";
+echo "Sample 6 Input: \n" . print_r($jsonrpcrequest, true) . "\nSample 6 Output (raw): \n";
 ob_start();
 SampleJSONRPCServer::handle('', json_encode($jsonrpcrequest), FALSE );
 $output = ob_get_contents();
 ob_flush();
 ob_end_clean();
-echo "\n\nSample 7 Output (decoded): \n";
+echo "\n\nSample 6 Output (decoded): \n";
 echo print_r(json_decode($output, true), TRUE);
 unset($jsonrpcrequest['params']['param4_is_invalid']);
 
 echo "
 /**
- * Sample 8
+ * Sample 7
  *
  * Then, on a new class with a __call method, attempting to invoke it by calling some random non-existant method name
  */
@@ -164,12 +164,12 @@ echo "
 
 $jsonrpcrequest['method'] = 'SampleAPICallClass.thisMethodDoesNotExist';
 
-echo "Sample 8 Input: \n" . print_r($jsonrpcrequest, true) . "\nSample 8 Output (raw): \n";
+echo "Sample 7 Input: \n" . print_r($jsonrpcrequest, true) . "\nSample 7 Output (raw): \n";
 ob_start();
 SampleJSONRPCServer::handle('', json_encode($jsonrpcrequest), FALSE );
 $output = ob_get_contents();
 ob_flush();
 ob_end_clean();
-echo "\n\nSample 8 Output (decoded): \n";
+echo "\n\nSample 7 Output (decoded): \n";
 echo print_r(json_decode($output, true), TRUE);
 unset($jsonrpcrequest['params']['param4_is_invalid']);
