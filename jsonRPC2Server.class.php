@@ -43,9 +43,9 @@ class jsonRPC2Server {
     public static $request = NULL;
     
     // Constants
-    public static const CODE_INVALID_JSON    = -32018;
-    public static const CODE_INVALID_REQUEST = -32300;
-    public static const CODE_GENERIC_ERROR   = -32600;
+    const CODE_INVALID_JSON    = -32018;
+    const CODE_INVALID_REQUEST = -32300;
+    const CODE_GENERIC_ERROR   = -32600;
     
     /**
      * This function handles a JSON-RPC request from STDIN, a POST, a GET param, or a parameter into this method.
