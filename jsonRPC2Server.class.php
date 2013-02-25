@@ -1,7 +1,7 @@
 <?php
 /**
   * @package    JSON-RPC 2 Server
-  * @version    1.2
+  * @version    1.3
   */
 
 /**
@@ -32,6 +32,8 @@
  *      encodeJSON($data)
  *
  * @see     http://en.wikipedia.org/wiki/Jsonrpc
+ * @see     http://json-rpc.org/wiki/specification
+ *
  * @author  Farley  <andrew@neonsurge.com>
  */
 
@@ -39,6 +41,11 @@ class jsonRPC2Server {
 
     // Our received request is stored here so we can access it from observer methods
     public static $request = NULL;
+    
+    // Constants
+    public static const CODE_INVALID_JSON    = -32018;
+    public static const CODE_INVALID_REQUEST = -32300;
+    public static const CODE_GENERIC_ERROR   = -32600;
     
     /**
      * This function handles a JSON-RPC request from STDIN, a POST, a GET param, or a parameter into this method.
@@ -67,16 +74,6 @@ class jsonRPC2Server {
             // Observer has_Started()
             static::has_Started();
         
-            // Checks if a JSON-RPC request has been received and exits if it's not valid
-            // Oct 16, 2012 - Disabled this check, it doesn't make sense by default, and it seems many clients don't set
-            // valid mime types, feel free to re-enable this if you want
-            /*
-            $valid_types = array('application/json','application/javascript','application/json-rpc');
-            if ( $_SERVER['REQUEST_METHOD'] != 'POST' || empty($_SERVER['CONTENT_TYPE']) || !in_array($_SERVER['CONTENT_TYPE'],$valid_types ) ) {
-                throw new Exception('Invalid content-type ('.$_SERVER['CONTENT_TYPE'].') expecting "application/json" or "application/javascript" content-type');
-            }
-            */
-        
             // Reads the JSON request from the parameter if it's specified
             if (strlen($serialized_jsonrpc) > 0)
                 $rawdata = $serialized_jsonrpc;
@@ -88,7 +85,7 @@ class jsonRPC2Server {
                 $rawdata = file_get_contents('php://input');
             // Or else we failed
             if (strlen($rawdata) <= 0)
-                throw new Exception('No JSON received through any of the supported mechanisms (POST/STDIN/GET/Parameter)');
+                throw new Exception('No JSON received through any of the supported mechanisms (POST/STDIN/GET/Parameter)', static::CODE_INVALID_JSON);
         
             // Observer: has_GotRawData(& $rawdata)
             static::has_GotRawData($rawdata);
@@ -104,9 +101,9 @@ class jsonRPC2Server {
             
             // Check for an invalid request
             if (static::$request === NULL) {
-                throw new Exception('Invalid request - try some json-rpc next time, received '.$rawdata);
+                throw new Exception('Invalid request - try some json-rpc next time, received '.$rawdata, static::CODE_INVALID_JSON);
             } else if (!isset(static::$request['method']) || !isset(static::$request['id'])) {
-                throw new Exception('Your JSON is missing one of the two required parameters: (method,id)');
+                throw new Exception('Your JSON is missing one of the two required parameters: (method,id)', static::CODE_INVALID_REQUEST);
             } else if (!isset(static::$request['params'])) {
                 // If not valid params passed in, assume there was none, an empty array, don't error out, some clients are sloppy and do this
                 static::$request['params'] = array();
@@ -124,7 +121,7 @@ class jsonRPC2Server {
                     $classname = substr(static::$request['method'], 0, $pos);
                     static::$request['method'] = substr(static::$request['method'],$pos+1);
                 } else {
-                    throw new Exception('No class specified in your method parameter (eg: Classname.methodname) or no class name passed into the handler (so your JSON can just contain the method called)');
+                    throw new Exception('No class specified in your method parameter (eg: Classname.methodname) or no class name passed into the handler (so your JSON can just contain the method called)', static::CODE_INVALID_REQUEST);
                 }
             }
             
@@ -138,7 +135,7 @@ class jsonRPC2Server {
             // NOTE: class_exists below kicks off the autoloader, so if the autoloader is setup properly, no 
             // includes are necessary from the has_GotClassAndMethodName() observer
             if (!class_exists($classname)) {
-                throw new Exception('The class ('.$classname.') was not defined or is invalid');
+                throw new Exception('The class ('.$classname.') was not defined or is invalid', static::CODE_INVALID_REQUEST);
             }
         
             // Ensure that we can call this method (aka, public) and implement our JSON-RPC 2.0 by-name parameters
@@ -155,7 +152,7 @@ class jsonRPC2Server {
                 // Ensure we can call this class
                 $result = $reflection_method->isPublic();
                 if (!$result) {
-                    throw new Exception('The method ('.static::$request['method'].') is not public');
+                    throw new Exception('The method ('.static::$request['method'].') is not public', static::CODE_INVALID_REQUEST);
                 }
 
                 // If input parameters are by name, reorder them
@@ -176,7 +173,7 @@ class jsonRPC2Server {
                     $call_statically    = TRUE;
                 } else {
                     // If this method wasn't found on the class, and there is no __call or __callStatic then this method call will fail, bail!
-                    throw new Exception('Method '.static::$request['method'].' does not exist');
+                    throw new Exception('Method '.static::$request['method'].' does not exist', static::CODE_INVALID_REQUEST);
                 }
             }
             
@@ -293,6 +290,7 @@ class jsonRPC2Server {
      * @param   integer  $id        When a request is made it has a unique ID which we must return in our response
      */
     public static function outputError($reason, $code = -32600, $id = NULL, $exit_after = TRUE) {
+        $code = ( !is_numeric($code) || $code == 0 ? static::CODE_GENERIC_ERROR : $code );
         static::outputJSON( static::generateError($reason, $code, $id), $exit_after );
     }
 
@@ -306,7 +304,7 @@ class jsonRPC2Server {
      * @return  array               A standard JSON-RPC error array structure (in array format, not json serialized yet)
      */
     public static function generateError($reason, $code = -32600, $id = NULL) {
-        $code = ( !is_numeric($code) || $code == 0 ? -32600 : $code );
+        $code = ( !is_numeric($code) || $code == 0 ? static::CODE_GENERIC_ERROR : $code );
         $id   = ( $id === 0 || $id === '0' ? $id : (int) $id );
         return array(
                     'jsonrpc'   => '2.0',
@@ -379,7 +377,7 @@ class jsonRPC2Server {
     public static function rearrangeParametersByName($parameter_array, $ordering_array) {
         // First some validation...
         if (!is_array($ordering_array)) {
-            throw new Exception('The JSON-RPC 2.0 By-Name key parameters passed in were invalid, this is a server-error please report it to the administrator');
+            throw new Exception('The JSON-RPC 2.0 By-Name key parameters passed in were invalid, this is a server-error please report it to the administrator', static::CODE_INVALID_REQUEST);
         }
         // Then re-order our array
         $final_array = array();
@@ -387,7 +385,7 @@ class jsonRPC2Server {
         foreach ($parameter_array as $key=>$val) {
             $newkey = array_search($key,$ordering_array);
             if ($newkey === FALSE) {
-                throw new Exception('The JSON-RPC 2.0 By-Name parameter ('.$key.') appears to not be a valid key name for this method, please check your code (key names are case sensitive)');
+                throw new Exception('The JSON-RPC 2.0 By-Name parameter ('.$key.') appears to not be a valid key name for this method, please check your code (key names are case sensitive)', static::CODE_INVALID_REQUEST);
             }
             if ($newkey > $maxkey) $maxkey = $newkey;
             $final_array[$newkey] = $val;
@@ -431,15 +429,15 @@ class jsonRPC2Server {
                 return;
             break;
             case JSON_ERROR_DEPTH:
-                throw new Exception('JSON Parsing error: Maximum stack depth exceeded');
+                throw new Exception('JSON Parsing error: Maximum stack depth exceeded', static::CODE_INVALID_JSON);
             break;
             case JSON_ERROR_CTRL_CHAR:
             case JSON_ERROR_UTF8:
-                throw new Exception('JSON Parsing error: Unexpected control character found or incorrect character encoding');
+                throw new Exception('JSON Parsing error: Unexpected control character found or incorrect character encoding', static::CODE_INVALID_JSON);
             break;
             case JSON_ERROR_SYNTAX:
             case JSON_ERROR_STATE_MISMATCH:
-                throw new Exception('JSON Parsing error: Malformed JSON');
+                throw new Exception('JSON Parsing error: Malformed JSON', static::CODE_INVALID_JSON);
             break;
         }
     }
