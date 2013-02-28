@@ -202,7 +202,11 @@ class jsonRPC2Server {
             static::has_HandledRequestOK($result);
         
             // Return our result and exit or return
-            self::outputOK($result, static::$request['id'], $exit_after);
+            self::outputOK($result, static::$request['id']);
+            
+            // If we want to exit after, exit, otherwise return
+            if ($exit_after)
+                exit;
             return;
         
         // If either of the above paths errors out, catch the exception and handle it here
@@ -215,12 +219,19 @@ class jsonRPC2Server {
             static::has_HandledRequestERROR($message, $code);
 
             // Pass back our error message and code through JSON-RPC and exit or return
-            self::outputError($message, $code, NULL, $exit_after);
+            self::outputError($message, $code, NULL);
+
+            // If we want to exit after, exit, otherwise return
+            if ($exit_after)
+                exit;
             return;
         }
         
         // We shouldn't get here, ever unless the above logic was modified
         self::outputError('Internal error while trying to handle JSON-RPC');
+        // If we want to exit after, exit, otherwise return
+        if ($exit_after)
+            exit;
         return;
     }
     
@@ -234,13 +245,23 @@ class jsonRPC2Server {
      * @param   array   $data       The prepared standardized JSON-RPC array output
      * @param   boolean $andBail    Whether we want to exit right after we output the data to the user (default: TRUE)
      */
-    public static function outputJSON($data, $andBail = TRUE) {
+    public static function outputJSON($data) {
         // If we forgot to set which version of json-rpc we're using in our data stream, which we definitely do everywhere (below), but just incase
         if (is_array($data) && !isset($data['jsonrpc'])) {
-            // Some clients are finicky and want jsonrpc as the first element in the response array, but if you want less computing overhead, comment out the two array_reverse's
+            // Some clients are finicky and want jsonrpc as the first element in the response array, if you need this use the following code...
+            /*
             $arr = array_reverse($data, true); 
             $arr['jsonrpc'] = '2.0'; 
             $data = array_reverse($arr, true);
+            */
+            
+            // Otherwise use the faster code
+            $data['jsonrpc'] = '2.0';
+        }
+        
+        // id is always required in json-rpc responses, setting this to NULL though if not specified
+        if (is_array($data) && !isset($data['id'])) {
+            $data['id'] = null;
         }
         
         // Call our observer before outputting incase we want to add things
@@ -248,10 +269,6 @@ class jsonRPC2Server {
 
         // Output our raw JSON
         static::outputRAWJSON( static::encodeJSON($data) );
-        
-        // If we want to bail right afterwards
-        if ($andBail)
-            exit;
     }
     
     /**
@@ -294,9 +311,9 @@ class jsonRPC2Server {
      * @param   integer  $code      The error code of why this is failing (some clients can do different things based on different codes)
      * @param   integer  $id        When a request is made it has a unique ID which we must return in our response
      */
-    public static function outputError($reason, $code = -32600, $id = NULL, $exit_after = TRUE) {
+    public static function outputError($reason, $code = -32600, $id = NULL) {
         $code = ( !is_numeric($code) || $code == 0 ? static::CODE_GENERIC_ERROR : $code );
-        static::outputJSON( static::generateError($reason, $code, $id), $exit_after );
+        static::outputJSON( static::generateError($reason, $code, $id) );
     }
 
     /**
@@ -328,8 +345,8 @@ class jsonRPC2Server {
      * @param   mixed   $result    The output of the RPC call
      * @param   integer $id        When a request is made it has a unique ID which we must return in our response
      */
-    public static function outputOK($result, $id, $exit_after = TRUE) {
-        static::outputJSON( static::generateOK( $result, $id ), $exit_after );
+    public static function outputOK($result, $id) {
+        static::outputJSON( static::generateOK( $result, $id ) );
     }
     
     
