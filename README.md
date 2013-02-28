@@ -16,7 +16,8 @@ Features
 
 Tasks to be completed
 ============
-- Write some/better tutorials/example classes!  URGENT, so people can easily start using this class!
+- Write some/better tutorials/example classes!  So more people can easily start using this class!
+- Write some unit tests, to ensure the classes integrity as they (potentially) grow
 - Implement bi-directional JSON-RPC to facilitate a persistent connection from a client to a server (eg: for a flash game or chat client)
 - Allow the bi-directional server mechanism to work asynchronously and non-blocking by launching threads (or something, if possible) to handle each incoming request on a stream
 - Finish and github my JSON-RPC 2.0 web-based consumption/testing code which is a simple visual tool to consume and test your services
