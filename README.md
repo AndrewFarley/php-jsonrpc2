@@ -23,6 +23,6 @@ Tasks to be completed
 
 To get started
 ==============
-- Run the sample.php script (cli or via a webserver) and see how it works, and what it does.  It will walk you through all the things that the library handles
-- Then try the (coming soon) client.php and server.php scripts by pointing your web browser to http://yoursite/php-jsonrpc2/client.php
-- Then go create your own JSON-RPC 2.0 server, and let me know.  :)
+- Run the sample.php script via a webserver and see how it works, and what it does.  It will walk you through all the things that the library handles including the (new) client library and the server library
+- Then try pointing some of your client code against the endpoint at sample_endpoint.php by pointing your code to http://yoursite/php-jsonrpc2/sample_endpoint.php
+- Then go create your own JSON-RPC 2.0 server or client and share your experiences with me!  Submit patches, add unit tests, document something, or just tell me how cool open source software is.
