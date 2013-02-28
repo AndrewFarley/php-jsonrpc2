@@ -64,8 +64,6 @@ class jsonRPC2Client {
         $this->request_data = null;
         $this->request_class_method = null;
         $this->request_url = $url;
-        $this->request_top_level_array = array();
-        $this->request_http_headers = array('user_agent'=>'jsonRPC2Client_1.4/php_' . PHP_VERSION);
         $this->cascader = array();
     }
     
@@ -174,7 +172,7 @@ class jsonRPC2Client {
         $array_request = $this->_prepareRequestArray();
         // echo "Request looks like...";
         // print_r($array_request);
-        $json_request = $this->jsonify($array_request);
+        $json_request = self::jsonify($array_request);
         // echo "Making request to ".$this->request_url."...";
         
         // performs the HTTP POST
@@ -207,7 +205,7 @@ class jsonRPC2Client {
         $request = array(
                         'method' => $this->request_class_method,
                         'params' => $this->request_data,
-                        'id' => ( !empty($this->request_id) ? $this->request_id : static::getNextID() )
+                        'id' => ( !empty($this->request_id) ? $this->request_id : self::getNextID() )
                     );
         // If the user has any additional top-level items to add (the specification allows for this for stuff like API keys, session ids, etc)
         if (is_array($this->request_top_level_array)) {
@@ -223,7 +221,7 @@ class jsonRPC2Client {
      * We're putting this here so if you need to you can override this method in a child incase you
      * need to do special serialization of your obejcts for security purposes (on the client-side)
      */
-    public function jsonify($data) {
+    public static function jsonify($data) {
         return json_encode($data);
     }
     
