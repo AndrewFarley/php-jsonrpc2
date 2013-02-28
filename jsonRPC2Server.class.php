@@ -2,7 +2,7 @@
 /**
   * @package    php-jsonrpc2
   * @see        https://github.com/AndrewFarley/php-jsonrpc2
-  * @version    1.3
+  * @version    1.4
   */
 
 /**
@@ -33,6 +33,7 @@
  *      encodeJSON($data)
  *
  * @see     http://en.wikipedia.org/wiki/Jsonrpc
+ * @see     http://www.jsonrpc.org/specification
  * @see     http://json-rpc.org/wiki/specification
  *
  * @author  Farley  <andrew@neonsurge.com>

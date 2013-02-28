@@ -2,7 +2,7 @@
 /**
   * @package    php-jsonrpc2
   * @see        https://github.com/AndrewFarley/php-jsonrpc2
-  * @version    1.3
+  * @version    1.4
   */
 
 /**

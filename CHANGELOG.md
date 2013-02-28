@@ -1,3 +1,13 @@
+v1.4
+======
+- Added my jsonRPC2Client class which supports...
+  - Method chaining and/or dynamic method execution
+  - Top-level arguments (for api keys/sessions/etc)
+  - Adding HTTP Headers (for api keys/sessions/etc)
+  - JSON-RPC 2.0 By-Name (keyed) Parameters (for both method chaining and dynamic method execution)
+- When executed via a browser, the sample.php script now also tests our JSON-RPC Client by connecting to the provided SampleJSONRPCServer (effectively looped back)
+- The sample.php script now also outputs html instead of plaintext when executed via a browser (although the HTML is quite plain)
+
 v1.3
 ======
 - Moved error codes into static consts
