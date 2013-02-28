@@ -276,10 +276,14 @@ class jsonRPC2Server {
         /**
          * Send our JSON-RPC output and header type, only if not on cli
          * TODO: This logic may need to be improved/changed to support streaming
+         *
+         * NOTE: Farley has disabled this as this can tend to break things, you can re-enable this
+         *       by overriding this method with the following code...
          */
-        if (php_sapi_name() != 'cli')
-            header('Content-type: application/json');
-        // And output our data
+        // if (php_sapi_name() != 'cli')
+        //     header('Content-type: application/json');
+
+        // And now output our data
         echo $raw_json_string;
     }
     
