@@ -66,15 +66,11 @@ if (stristr($sapi, 'cli')) {
         $client = new jsonRPC2Client($endpoint_url);
         // Incase you need to set an API key or session in a top-level argument
         $client->_setTopLevelItem('api_key', 'valid_api_key');
-        // Incase you need to set an API key or session in a HTTP header (ours does not process/handle this, but some systems use headers for sessions/api keys)
-        // $client->_setHTTPHeader('api_key', 'valid_api_key');
         $result = $client->SampleAPICallClass->thisIsARandomMethod('value1', 'value2', 'value3');
         output("Got result: " . print_r($result, true) );
 
         // Method #3
         output("<h3>Method #3: Simple method abstraction with keyed array</h3>");
-        $client = new jsonRPC2Client($endpoint_url);
-        $client->_setTopLevelItem('api_key', 'valid_api_key');
         $result = $client->SampleAPIClass->outputThreeParameters__keyed(array('param3'=>'param3-data'));
         output("Got result: " . print_r($result, true) );
     }
